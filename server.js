@@ -150,71 +150,65 @@ app.post('/api/email', async (req, res) => {
   const monthly  = settings.monthly  || 2835;
   const yearly   = settings.yearly   || 34020;
 
-  // Build specific pain points from actual business data
   const painPoints = [];
-  if (!lead.website)                          painPoints.push('no website — completely invisible to online searches');
-  if (lead.website && lead.modernSite===false) painPoints.push('has a website but it is outdated and likely not mobile friendly');
-  if (lead.onDelivery)                        painPoints.push(`listed on a third party ordering platform paying ~$${monthly.toLocaleString()}/month ($${yearly.toLocaleString()}/year) in commission`);
-  if (!lead.hasOrdering && lead.website)      painPoints.push('has a website but no way to order or book online directly');
-  if (lead.instagram && !lead.hasOrdering)    painPoints.push('active on Instagram but no way for followers to actually order or book');
-  if ((lead.reviews || 0) < 20)              painPoints.push(`only ${lead.reviews || 0} Google reviews — very low online credibility`);
-  if (!lead.googleProfile)                    painPoints.push('incomplete or missing Google Business profile');
-  if (!lead.phone && !lead.email)             painPoints.push('no easy way for customers to contact them');
+  if (!lead.website) painPoints.push('no website at all');
+  if (lead.website && lead.modernSite === false) painPoints.push('has a website but it is outdated');
+  if (lead.onDelivery) painPoints.push('paying ~$' + monthly.toLocaleString() + '/month ($' + yearly.toLocaleString() + '/year) in platform commissions');
+  if (!lead.hasOrdering && lead.website) painPoints.push('has a website but no online ordering');
+  if (lead.instagram && !lead.hasOrdering) painPoints.push('active on Instagram but no way to order or book');
+  if ((lead.reviews || 0) < 20) painPoints.push('only ' + (lead.reviews || 0) + ' Google reviews');
+  if (!lead.googleProfile) painPoints.push('incomplete Google Business profile');
 
-  const prompt = `You are writing a cold outreach email on behalf of ${sigName}, Business Development Lead at ${company}, a digital agency in Atlanta that builds websites, ordering systems, booking platforms, and automation tools for small businesses.
+  const businessInfo = [
+    'Name: ' + lead.name,
+    'Type: ' + (lead.type || 'local business'),
+    'City: ' + (lead.city || lead.address || 'unknown'),
+    'Phone: ' + (lead.phone || 'not listed'),
+    'Website: ' + (lead.website || 'NONE'),
+    'Email: ' + (lead.email || 'none found'),
+    'Rating: ' + (lead.rating || 'unknown') + ' (' + (lead.reviews || 0) + ' reviews)',
+    'Instagram: ' + (lead.instagram ? '@' + lead.instagram : 'none'),
+    'On delivery apps: ' + (lead.onDelivery ? 'YES' : 'No'),
+    'Has ordering: ' + (lead.hasOrdering ? 'Yes' : 'NO'),
+    'Prospect score: ' + (lead.score || 0) + '/14',
+    'Pain points: ' + (painPoints.length > 0 ? painPoints.join('; ') : 'general gaps'),
+    'Pitch angles: ' + ((lead.pitches || []).join(' | ') || 'none yet'),
+  ].join('\n');
 
-BUSINESS YOU ARE WRITING TO:
-- Name: ${lead.name}
-- Type: ${lead.type || 'local business'}
-- Location: ${lead.city || lead.address || 'unknown'}
-- Phone: ${lead.phone || 'not listed'}
-- Website: ${lead.website || 'NONE'}
-- Email found: ${lead.email || 'none'}
-- Google rating: ${lead.rating || 'unknown'} (${lead.reviews || 0} reviews)
-- Instagram: ${lead.instagram ? '@' + lead.instagram : 'none found'}
-- On delivery apps paying commission: ${lead.onDelivery ? 'YES' : 'No'}
-- Has online ordering: ${lead.hasOrdering ? 'Yes' : 'NO'}
-- Modern website: ${lead.modernSite === true ? 'Yes' : lead.modernSite === false ? 'NO — outdated' : 'unknown'}
-- Google profile complete: ${lead.googleProfile ? 'Yes' : 'NO'}
-- Prospect score: ${lead.score}/14
-- Score explanation: ${lead.scoreBreakdown || 'not yet audited'}
-- Specific pain points identified: ${painPoints.length > 0 ? painPoints.join('; ') : 'general digital presence gaps'}
-- AI pitch angles: ${(lead.pitches || []).join(' | ') || 'none generated yet'}
+  const signature = [
+    sigName,
+    'Business Development Lead',
+    'Growth & Partnerships | ' + company,
+    sigPhone,
+    sigEmail,
+    website,
+    address,
+  ].join('\n');
 
-COMMISSION NUMBERS (use these if on delivery apps):
-- Monthly loss: $${monthly.toLocaleString()}
-- Yearly loss: $${yearly.toLocaleString()}
-
-EMAIL RULES — follow all of these exactly:
-1. Open with: Hi ${lead.name},
-2. Lead with ONE very specific observation about THIS business (not generic — use the actual data above)
-3. Name the exact pain point most relevant to them — reference specific details like their review count, the fact they have no website, or the delivery platform cost
-4. Explain what Pisyk does to fix that specific problem — be concrete, not vague
-5. Mention both monthly AND yearly costs if they are on delivery apps
-6. Do NOT mention DoorDash, Uber Eats, or Grubhub by name — say "third party platform" or "ordering platform"
-7. No dashes anywhere in the email body
-8. End by directing them to ${website} and asking them to reply — no phone call CTA
-9. Keep it under 250 words — tight and specific beats long and generic
-10. No fluff, no "I hope this finds you well", no hollow compliments
-
-SIGNATURE — end every email with exactly this:
-${sigName}
-Business Development Lead
-Growth & Partnerships | ${company}
-${sigPhone}
-${sigEmail}
-${website}
-${address}
-
-Return ONLY valid JSON, no markdown fences:
-{"subject":"<compelling subject line that references something specific about this business>","body":"<full email body using \\n for line breaks>"}`;
+  const prompt = 'You are writing a personalised cold outreach email for ' + sigName + ' at ' + company + ', a digital agency in Atlanta.\n\n'
+    + 'BUSINESS:\n' + businessInfo + '\n\n'
+    + 'COMMISSION (if on delivery apps): $' + monthly.toLocaleString() + '/month = $' + yearly.toLocaleString() + '/year\n\n'
+    + 'RULES:\n'
+    + '1. Start with: Hi ' + lead.name + ',\n'
+    + '2. Lead with ONE specific observation using the actual data above\n'
+    + '3. Name the most relevant pain point with specific numbers or details\n'
+    + '4. Explain what Pisyk fixes concretely\n'
+    + '5. Use monthly AND yearly numbers if on delivery apps\n'
+    + '6. Never name DoorDash, Uber Eats, or Grubhub. Say "third party platform"\n'
+    + '7. No dashes in the email body\n'
+    + '8. End directing to ' + website + ' and asking to reply. No phone call CTA\n'
+    + '9. Under 250 words. Tight and specific\n'
+    + '10. No filler phrases\n\n'
+    + 'END with this exact signature:\n' + signature + '\n\n'
+    + 'Return ONLY valid JSON with no markdown:\n'
+    + '{"subject":"<subject referencing something specific>","body":"<email using \\n for line breaks>"}';
 
   try {
     const aiRes = await axios.post(
       'https://api.anthropic.com/v1/messages',
       {
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 800,
+        max_tokens: 900,
         messages: [{ role: 'user', content: prompt }],
       },
       {
@@ -226,14 +220,13 @@ Return ONLY valid JSON, no markdown fences:
       }
     );
     const text = aiRes.data.content.map(c => c.text || '').join('');
-    res.json(JSON.parse(text.replace(/```json|```/g, '').trim()));
+    const clean = text.replace(/```json|```/g, '').trim();
+    res.json(JSON.parse(clean));
   } catch (err) {
     console.error('Email error:', err.response?.data || err.message);
     res.status(500).json({ error: err.message });
   }
 });
-
-
 
 
 const PORT = process.env.PORT || 3001;
