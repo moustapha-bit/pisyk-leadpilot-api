@@ -141,37 +141,80 @@ app.post('/api/email', async (req, res) => {
   if (!lead) return res.status(400).json({ error: 'lead required' });
   if (!ANTHROPIC_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
 
-  const company = settings.company || 'Pisyk';
-  const email   = settings.email   || 'hello@pisyk.co';
-  const website = settings.website || 'www.pisyk.com';
-  const name    = settings.name    || '';
+  const company  = settings.company  || 'Pisyk';
+  const sigName  = settings.name     || 'Moustapha Diop';
+  const sigEmail = settings.email    || 'moustapha@pisyk.com';
+  const sigPhone = settings.phone    || '(404) 919-5364';
+  const website  = settings.website  || 'www.pisyk.com';
+  const address  = settings.address  || '20 Terminus Place Northeast, Atlanta, GA 30305';
+  const monthly  = settings.monthly  || 2835;
+  const yearly   = settings.yearly   || 34020;
 
-  const prompt = `Write a cold outreach email to a local business owner on behalf of ${company}, a digital agency that builds websites, ordering systems, and digital tools for small businesses.
+  // Build specific pain points from actual business data
+  const painPoints = [];
+  if (!lead.website)                          painPoints.push('no website — completely invisible to online searches');
+  if (lead.website && lead.modernSite===false) painPoints.push('has a website but it is outdated and likely not mobile friendly');
+  if (lead.onDelivery)                        painPoints.push(`listed on a third party ordering platform paying ~$${monthly.toLocaleString()}/month ($${yearly.toLocaleString()}/year) in commission`);
+  if (!lead.hasOrdering && lead.website)      painPoints.push('has a website but no way to order or book online directly');
+  if (lead.instagram && !lead.hasOrdering)    painPoints.push('active on Instagram but no way for followers to actually order or book');
+  if ((lead.reviews || 0) < 20)              painPoints.push(`only ${lead.reviews || 0} Google reviews — very low online credibility`);
+  if (!lead.googleProfile)                    painPoints.push('incomplete or missing Google Business profile');
+  if (!lead.phone && !lead.email)             painPoints.push('no easy way for customers to contact them');
 
-Rules:
-- Open with: Hi ${lead.name},
-- Be conversational and specific, no fluff
-- Do NOT mention DoorDash, Uber Eats, or Grubhub by name. Say "third party platform" or "ordering platform"
-- Lead with a specific observation about their business
-- Mention costs in both monthly AND yearly terms
-- No dashes anywhere in the email
-- End by directing them to ${website}
-- Ask them to just reply. No phone call CTA
-- Sign off as: ${name ? name + '\n' + company : company}\n${email}\n${website}
+  const prompt = `You are writing a cold outreach email on behalf of ${sigName}, Business Development Lead at ${company}, a digital agency in Atlanta that builds websites, ordering systems, booking platforms, and automation tools for small businesses.
 
-Business: ${lead.name} (${lead.type}) in ${lead.address}
-Pain points identified: ${(lead.pitches || []).join('; ') || 'digital presence gaps'}
-Prospect score: ${lead.score}/14
+BUSINESS YOU ARE WRITING TO:
+- Name: ${lead.name}
+- Type: ${lead.type || 'local business'}
+- Location: ${lead.city || lead.address || 'unknown'}
+- Phone: ${lead.phone || 'not listed'}
+- Website: ${lead.website || 'NONE'}
+- Email found: ${lead.email || 'none'}
+- Google rating: ${lead.rating || 'unknown'} (${lead.reviews || 0} reviews)
+- Instagram: ${lead.instagram ? '@' + lead.instagram : 'none found'}
+- On delivery apps paying commission: ${lead.onDelivery ? 'YES' : 'No'}
+- Has online ordering: ${lead.hasOrdering ? 'Yes' : 'NO'}
+- Modern website: ${lead.modernSite === true ? 'Yes' : lead.modernSite === false ? 'NO — outdated' : 'unknown'}
+- Google profile complete: ${lead.googleProfile ? 'Yes' : 'NO'}
+- Prospect score: ${lead.score}/14
+- Score explanation: ${lead.scoreBreakdown || 'not yet audited'}
+- Specific pain points identified: ${painPoints.length > 0 ? painPoints.join('; ') : 'general digital presence gaps'}
+- AI pitch angles: ${(lead.pitches || []).join(' | ') || 'none generated yet'}
 
-Return ONLY valid JSON no markdown:
-{"subject":"<subject line>","body":"<full email body using \\n for line breaks>"}`;
+COMMISSION NUMBERS (use these if on delivery apps):
+- Monthly loss: $${monthly.toLocaleString()}
+- Yearly loss: $${yearly.toLocaleString()}
+
+EMAIL RULES — follow all of these exactly:
+1. Open with: Hi ${lead.name},
+2. Lead with ONE very specific observation about THIS business (not generic — use the actual data above)
+3. Name the exact pain point most relevant to them — reference specific details like their review count, the fact they have no website, or the delivery platform cost
+4. Explain what Pisyk does to fix that specific problem — be concrete, not vague
+5. Mention both monthly AND yearly costs if they are on delivery apps
+6. Do NOT mention DoorDash, Uber Eats, or Grubhub by name — say "third party platform" or "ordering platform"
+7. No dashes anywhere in the email body
+8. End by directing them to ${website} and asking them to reply — no phone call CTA
+9. Keep it under 250 words — tight and specific beats long and generic
+10. No fluff, no "I hope this finds you well", no hollow compliments
+
+SIGNATURE — end every email with exactly this:
+${sigName}
+Business Development Lead
+Growth & Partnerships | ${company}
+${sigPhone}
+${sigEmail}
+${website}
+${address}
+
+Return ONLY valid JSON, no markdown fences:
+{"subject":"<compelling subject line that references something specific about this business>","body":"<full email body using \\n for line breaks>"}`;
 
   try {
     const aiRes = await axios.post(
       'https://api.anthropic.com/v1/messages',
       {
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 700,
+        max_tokens: 800,
         messages: [{ role: 'user', content: prompt }],
       },
       {
@@ -189,6 +232,9 @@ Return ONLY valid JSON no markdown:
     res.status(500).json({ error: err.message });
   }
 });
+
+
+
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Pisyk LeadPilot API on port ${PORT}`));
