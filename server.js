@@ -75,7 +75,7 @@ app.post('/api/audit', async (req, res) => {
   if (!lead) return res.status(400).json({ error: 'lead required' });
   if (!ANTHROPIC_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
 
-  const prompt = `You are auditing a local business as a cold outreach prospect for Pisyk, a digital agency in Atlanta that builds websites, ordering systems, and digital tools for small businesses.
+  const prompt = `You are auditing a local business as a cold outreach prospect for Pisyk, a digital agency in Atlanta that builds websites, online ordering systems, booking platforms, automation tools, and digital presence solutions for small businesses of all types — restaurants, salons, barbershops, plumbers, gyms, clinics, retailers, real estate agents, and more.
 
 Business: ${lead.name}
 Type: ${lead.type}
@@ -91,13 +91,13 @@ Modern website: ${lead.modernSite}
 Online ordering: ${lead.hasOrdering}
 
 Scoring rules — add points where each applies:
-- No website: +3
-- Bad or outdated website: +2
-- Incomplete Google Business profile: +2
-- On DoorDash or Uber Eats paying commissions: +3
-- Fewer than 20 reviews: +1
-- Active on Instagram but no way to order or book online: +2
-- Phone-only contact no email or online form: +1
+- No website at all: +3
+- Has a website but it is outdated, broken, or not mobile friendly: +2
+- Incomplete or missing Google Business profile: +2
+- On a third party platform paying commissions or lead fees (delivery apps, Thumbtack, Yelp leads etc): +3
+- Fewer than 20 Google reviews: +1
+- Active on social media but no way to book, order, or contact online: +2
+- Phone-only contact with no email, form, or online booking: +1
 
 Return ONLY valid JSON no markdown:
 {
@@ -185,16 +185,16 @@ app.post('/api/email', async (req, res) => {
     address,
   ].join('\n');
 
-  const prompt = 'You are writing a personalised cold outreach email for ' + sigName + ' at ' + company + ', a digital agency in Atlanta.\n\n'
+  const prompt = 'You are writing a personalised cold outreach email for ' + sigName + ' at ' + company + ', a digital agency in Atlanta that builds websites, online ordering, booking systems, and automation tools for local businesses of all types.
     + 'BUSINESS:\n' + businessInfo + '\n\n'
-    + 'COMMISSION (if on delivery apps): $' + monthly.toLocaleString() + '/month = $' + yearly.toLocaleString() + '/year\n\n'
+    + 'PLATFORM/LEAD FEES (if applicable): $' + monthly.toLocaleString() + '/month = $' + yearly.toLocaleString() + '/year\n\n'
     + 'RULES:\n'
     + '1. Start with: Hi ' + lead.name + ',\n'
     + '2. Lead with ONE specific observation using the actual data above\n'
-    + '3. Name the most relevant pain point with specific numbers or details\n'
+    + '3. Name the most relevant pain point for THIS type of business with specific numbers\n'
     + '4. Explain what Pisyk fixes concretely\n'
     + '5. Use monthly AND yearly numbers if on delivery apps\n'
-    + '6. Never name DoorDash, Uber Eats, or Grubhub. Say "third party platform"\n'
+    + '6. Never name specific platforms. Say "third party platform", "ordering platform", or "lead generation platform"\n'
     + '7. No dashes in the email body\n'
     + '8. End directing to ' + website + ' and asking to reply. No phone call CTA\n'
     + '9. Under 250 words. Tight and specific\n'
